@@ -136,9 +136,7 @@ function placeDisk(x,y,color){
 }
 
 // ターン切替
-function switchTurn(){
-    currentPlayer=currentPlayer==='black'?'white':'black';
-}
+function switchTurn(){ currentPlayer=currentPlayer==='black'?'white':'black'; }
 
 // 勝敗判定
 function checkGameEnd(){
@@ -150,7 +148,7 @@ function checkGameEnd(){
             else empty++;
         }
     }
-    if(empty===0 || !hasValidMove('black') && !hasValidMove('white')){
+    if(empty===0 || (!hasValidMove('black') && !hasValidMove('white'))){
         if(blackCount>whiteCount) showMessage(`黒の勝ちです！\n黒:${blackCount} 白:${whiteCount}`,0);
         else if(whiteCount>blackCount) showMessage(`白の勝ちです！\n白:${whiteCount} 黒:${blackCount}`,0);
         else showMessage(`引き分けです！\n黒:${blackCount} 白:${whiteCount}`,0);
@@ -232,18 +230,28 @@ function countFlips(x,y,color){
 // ボタン操作
 function startAIGame(level){
     if(!myColor){ alert('まず先攻？後攻？ボタンを押してください'); return; }
+
     aiEnabled=true;
     aiStrength=level;
     initBoard();
+
+    // 音声再生
+    if(level==='weak') sounds.start_weak.play();
+    else if(level==='normal') sounds.start_normal.play();
+    else if(level==='strong') sounds.start_strong.play();
+
     showMessage('ゲーム開始！',2000);
-    // AI先行の場合
+
     if(currentPlayer!==myColor) setTimeout(aiMove,800);
 }
 
 function startOnline(){
     if(!myColor){ alert('まず先攻？後攻？ボタンを押してください'); return; }
+
     aiEnabled=false;
     initBoard();
+
+    sounds.start_online.play();
     showMessage('ゲーム開始！',2000);
 }
 
