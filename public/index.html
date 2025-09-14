@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセちるみん Ver5</title>
+<title>オセちるみん 伝説の始まり</title>
 <style>
 body { font-family: Arial,sans-serif; display:flex; flex-direction:column; align-items:center; background:#ffe4f0; margin:0; padding:0; }
 h1 { color:#ff69b4; margin-top:20px; text-shadow:1px 1px 2px #fff; }
@@ -17,15 +17,7 @@ h1 { color:#ff69b4; margin-top:20px; text-shadow:1px 1px 2px #fff; }
 .piece img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
 #message { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:48px; font-weight:bold; color:red; pointer-events:none; display:none; text-align:center; z-index:10; text-shadow:2px 2px #fff; }
 @media (max-width:600px){ .btn{padding:8px 15px;font-size:14px;} #message{font-size:36px;} }
-
-/* AIスキップアニメーション */
-@keyframes aiSkipFlip {
-  0% { transform: translateY(0); }
-  25% { transform: translateY(-10%); }
-  50% { transform: translateY(0); }
-  75% { transform: translateY(-5%); }
-  100% { transform: translateY(0); }
-}
+@keyframes aiSkipFlip { 0% { transform: translateY(0); } 25% { transform: translateY(-10%); } 50% { transform: translateY(0); } 75% { transform: translateY(-5%); } 100% { transform: translateY(0); } }
 .ai-skip-flip { animation: aiSkipFlip 0.8s ease; }
 </style>
 </head>
@@ -49,7 +41,6 @@ const board=document.getElementById('board');
 const SIZE=8;
 let cells=[], boardState=[], currentPlayer=null, aiStrength='normal', myColor=null, aiEnabled=false, gameStarted=false;
 
-// メッセージ
 const messageEl=document.getElementById('message');
 function showMessage(msg, duration=1500){
     messageEl.textContent=msg;
@@ -57,7 +48,6 @@ function showMessage(msg, duration=1500){
     if(duration>0) setTimeout(()=>{messageEl.style.display='none';}, duration);
 }
 
-// 音声
 const sounds={
     start_weak:new Audio('start_weak.mp3'),
     start_normal:new Audio('start_normal.mp3'),
@@ -67,13 +57,12 @@ const sounds={
     2:new Audio('flip2.mp3'),
     3:new Audio('flip3.mp3'),
     4:new Audio('flip4.mp3'),
-    corner:new Audio('corner.m4a'),
+    corner:new Audio('corner.mp3'),
     win:new Audio('win.mp3'),
     lose:new Audio('lose.mp3')
 };
 for(const k in sounds) sounds[k].volume=1.0;
 
-// セル生成
 for(let y=0;y<SIZE;y++){
     cells[y]=[];
     for(let x=0;x<SIZE;x++){
@@ -86,7 +75,6 @@ for(let y=0;y<SIZE;y++){
     }
 }
 
-// 初期化
 function initBoard(){
     boardState=Array(SIZE).fill(null).map(()=>Array(SIZE).fill(null));
     boardState[3][3]='white'; boardState[3][4]='black';
@@ -95,7 +83,6 @@ function initBoard(){
     gameStarted=true;
 }
 
-// 描画
 function renderBoard(){
     for(let y=0;y<SIZE;y++){
         for(let x=0;x<SIZE;x++){
@@ -105,7 +92,6 @@ function renderBoard(){
     }
 }
 
-// 石置ける判定
 function isValidMove(x,y,color){
     if(boardState[y][x]) return false;
     const opponent=(color==='black')?'white':'black';
@@ -120,7 +106,6 @@ function isValidMove(x,y,color){
     return false;
 }
 
-// 石置いて反転
 function placeDisk(x,y,color){
     boardState[y][x]=color;
     const opponent=(color==='black')?'white':'black';
@@ -141,31 +126,10 @@ function placeDisk(x,y,color){
     else if(flipped===3) sounds[3].play();
     else if(flipped===2) sounds[2].play();
     else if(flipped===1) sounds[1].play();
-    if((x===0||x===7)&&(y===0||y===7)) sounds.corner.play();
+    if((x===0||x===7)&&(y===0||y===7)) sounds.corner.play(); // 角音再生修正
 }
 
-// ターン切替
 function switchTurn(){ currentPlayer=currentPlayer==='black'?'white':'black'; }
-
-// 勝敗判定
-function checkGameEnd(){
-    let blackCount=0, whiteCount=0, empty=0;
-    for(let y=0;y<8;y++){
-        for(let x=0;x<8;x++){
-            if(boardState[y][x]==='black') blackCount++;
-            else if(boardState[y][x]==='white') whiteCount++;
-            else empty++;
-        }
-    }
-    if(empty===0 || (!hasValidMove('black') && !hasValidMove('white'))){
-        if(blackCount>whiteCount) showMessage(`黒の勝ちです！\n黒:${blackCount} 白:${whiteCount}`,0);
-        else if(whiteCount>blackCount) showMessage(`白の勝ちです！\n白:${whiteCount} 黒:${blackCount}`,0);
-        else showMessage(`引き分けです！\n黒:${blackCount} 白:${whiteCount}`,0);
-        gameStarted=false;
-        return true;
-    }
-    return false;
-}
 
 function hasValidMove(color){
     for(let y=0;y<8;y++){
@@ -176,7 +140,6 @@ function hasValidMove(color){
     return false;
 }
 
-// スキップ処理
 function checkSkip(isAI=false,isOnline=false){
     while(gameStarted && !hasValidMove(currentPlayer)){
         if(isAI){
@@ -191,12 +154,10 @@ function checkSkip(isAI=false,isOnline=false){
         else showMessage('スキップします');
 
         switchTurn();
-        if(checkGameEnd()) return false;
     }
     return true;
 }
 
-// プレイヤー手番
 function handleMove(x,y){
     if(!gameStarted || !myColor || currentPlayer!==myColor) return;
     if(!isValidMove(x,y,myColor)) return;
@@ -206,15 +167,14 @@ function handleMove(x,y){
     switchTurn();
     renderBoard();
 
-    if(!checkSkip()) return;
+    checkSkip();
     showMessage(currentPlayer===myColor?'あなたの番です':'あいての番です');
 
     if(aiEnabled && currentPlayer!==myColor) setTimeout(aiMove,800);
 }
 
-// AI動作
 function aiMove(){
-    if(!checkSkip(true)) return;
+    checkSkip(true);
 
     let moves=[];
     for(let y=0;y<8;y++){
@@ -231,7 +191,7 @@ function aiMove(){
         for(const m of moves){
             let c=countFlips(m.x,m.y,'white'); if(c>max){max=c; move=m;}
         }
-    } else { // strong
+    } else {
         move=moves.find(m=>(m.x===0||m.x===7)&&(m.y===0||m.y===7)) || moves[0];
         let max=-1;
         for(const m of moves){
@@ -245,11 +205,10 @@ function aiMove(){
     renderBoard();
     showMessage('あなたの番です');
 
-    if(!checkSkip(true)) return;
+    checkSkip(true);
     if(currentPlayer!==myColor) setTimeout(aiMove,800);
 }
 
-// ひっくり返る数
 function countFlips(x,y,color){
     let total=0;
     const opponent=(color==='black')?'white':'black';
@@ -264,7 +223,6 @@ function countFlips(x,y,color){
     return total;
 }
 
-// ボタン操作
 function startAIGame(level){
     if(!myColor){ alert('まず先攻？後攻？ボタンを押してください'); return; }
 
@@ -291,7 +249,6 @@ function startOnline(){
     showMessage('ゲーム開始！',2000);
 }
 
-// 先攻後攻選択
 function chooseColor(){
     const colors=['white','black'];
     myColor=colors[Math.floor(Math.random()*2)];
@@ -299,7 +256,6 @@ function chooseColor(){
     showMessage(`あなたは${myColor==='white'?'白です':'黒です'}`,1000);
 }
 
-// 駒描画
 function flipPiece(x,y,color,animate=true){
     const cell=cells[y][x]; cell.innerHTML='';
     const piece=document.createElement('div'); piece.classList.add('piece');
@@ -308,11 +264,10 @@ function flipPiece(x,y,color,animate=true){
     if(animate){
         piece.style.transform='rotateY(180deg)';
         setTimeout(()=>{piece.classList.add('flip');},10);
-        if((x===0||x===7)&&(y===0||y===7)) sounds.corner.play();
     }
+    if((x===0||x===7)&&(y===0||y===7)) sounds.corner.play(); // 角音を必ず鳴らす
 }
 
-// オンライン受信
 socket.on('move',data=>{
     boardState[data.y][data.x]=data.color;
     flipPiece(data.x,data.y,data.color,true);
