@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>オセちるみん</title>
+<style>
+body { font-family: Arial,sans-serif; display:flex; flex-direction:column; align-items:center; background:#ffe4f0; margin:0; padding:0; }
+h1 { color:#ff69b4; margin-top:20px; text-shadow:1px 1px 2px #fff; }
+#controls { margin:10px 0; }
+.btn { background-color:#ffb6c1; border:none; border-radius:15px; padding:10px 20px; margin:0 5px; font-size:16px; cursor:pointer; transition:0.2s; }
+.btn:hover { background-color:#ff69b4; color:#fff; }
+#board { display:grid; grid-template-columns:repeat(8,1fr); gap:2px; width:650px; height:650px; aspect-ratio:1/1; background-image:url('board.png'); background-size:cover; background-position:center; padding:5px; box-shadow:0 0 10px rgba(0,0,0,0.3); }
+.cell { background-color:transparent; position:relative; border-radius:5px; touch-action:manipulation; }
+.piece { width:80%; height:80%; border-radius:50%; position:absolute; top:10%; left:10%; transform-style:preserve-3d; backface-visibility:hidden; transition:transform 0.4s ease; }
+.flip { transform:rotateY(180deg); }
+.piece img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
+@media (max-width:900px){ #board { width:90vw; height:90vw; } .btn{ padding:8px 15px; font-size:14px; } }
+</style>
+</head>
+<body>
+<h1>オセちるみん</h1>
+<div id="controls">
+<button class="btn" onclick="setAI('weak')">ちる弱</button>
+<button class="btn" onclick="setAI('normal')">ちる普</button>
+<button class="btn" onclick="setAI('strong')">ちる強</button>
+</div>
+<div id="board"></div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const socket = io(); // サーバー接続
+
+const board=document.getElementById('board');
+const SIZE=8;
+let cells=[], boardState=Array(SIZE).fill(null).map(()=>Array(SIZE).fill(null)), currentPlayer='black', aiStrength='normal', myColor=null;
+
+// 音声設定
+const sounds={
+    start_weak:new Audio('start_weak.m4a'),
+    start_normal:new Audio('start_normal.m4a'),
+    start_strong:new Audio('start_strong.m4a'),
+    1:new Audio('flip1.m4a'),
+    2:new Audio('flip2.m4a'),
+    3:new Audio('flip3.m4a'),
+    4:new Audio('flip4.m4a'),
+    corner:new Audio('corner.m4a'),
+    win:new Audio('win.m4a'),
+    lose:new Audio('lose.m4a')
+};
+for(const k in sounds){ sounds[k].volume=1.0; }
+
+function playSound(flipped){ if(flipped>=4)sounds[4].play(); else sounds[flipped].play(); }
+
+// セル生成
+for(let y=0;y<SIZE;y++){
+    cells[y]=[];
+    for(let x=0;x<SIZE;x++){
+        const div=document.createElement('div');
+        div.classList.add('cell');
+        div.dataset.x=x;
+        div.dataset.y=y;
+        div.addEventListener('click', playerMove);
+        div.addEventListener('touchstart', playerMove);
+        board.appendChild(div);
+        cells[y][x]=div;
+    }
+}
+
+// 初期化
+function initBoard(startSound){
+    boardState=Array(SIZE).fill(null).map(()=>Array(SIZE).fill(null));
+    boardState[3][3]='white'; boardState[3][4]='black';
+    boardState[4][3]='black'; boardState[4][4]='white';
+    currentPlayer='black';
+    renderBoard();
+    if(startSound) startSound.play();
+}
+
+// 描画
+function renderBoard(){
+    for(let y=0;y<SIZE;y++){
+        for(let x=0;x<SIZE;x++){
+            cells[y][x].innerHTML='';
+            if(boardState[y][x]) flipPiece(x,y,boardState[y][x],false);
+        }
+    }
+}
+
+// 難易度設定
+function setAI(level){
+    aiStrength=level;
+    let startSound;
+    if(level==='weak') startSound=sounds.start_weak;
+    else if(level==='normal') startSound=sounds.start_normal;
+    else startSound=sounds.start_strong;
+    initBoard(startSound);
+    myColor='black';
+}
+
+// プレイヤー操作
+function playerMove(){
+    if(myColor!=='black') return;
+    const x=parseInt(this.dataset.x), y=parseInt(this.dataset.y);
+    if(!isValidMove(x,y,myColor)) return;
+    const flipped=placePiece(x,y,myColor);
+    playSound(flipped);
+    socket.emit('move',{x,y,color:myColor});
+    switchTurn();
+}
+
+// 簡易ゲームロジック
+function isValidMove(x,y,color){ return !boardState[y][x]; }
+function placePiece(x,y,color){ boardState[y][x]=color; flipPiece(x,y,color,true); return 1; }
+function flipPiece(x,y,color,animate=true){ 
+    const cell=cells[y][x]; 
+    cell.innerHTML=''; 
+    const piece=document.createElement('div'); 
+    piece.classList.add('piece'); 
+    const img=document.createElement('img'); 
+    img.src=color==='black'?'black.png':'white.png'; 
+    piece.appendChild(img); 
+    cell.appendChild(piece); 
+    if(animate){ 
+        piece.style.transform='rotateY(180deg)'; 
+        setTimeout(()=>{ piece.classList.add('flip'); },10); 
+        if((x===0||x===7)&&(y===0||y===7)) sounds.corner.play(); 
+    } 
+}
+function switchTurn(){ currentPlayer=currentPlayer==='black'?'white':'black'; }
+
+// オンライン受信
+socket.on('move', data=>{
+    boardState[data.y][data.x]=data.color;
+    flipPiece(data.x,data.y,data.color,true);
+    switchTurn();
+});
+
+window.onload=()=>{ initBoard(); }
+</script>
+</body>
+</html>
