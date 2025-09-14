@@ -15,7 +15,7 @@ h1 { color:#ff69b4; margin-top:20px; text-shadow:1px 1px 2px #fff; }
 .piece { width:80%; height:80%; border-radius:50%; position:absolute; top:10%; left:10%; transform-style:preserve-3d; backface-visibility:hidden; transition:transform 0.4s ease; }
 .flip { transform:rotateY(180deg); }
 .piece img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
-#message { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:48px; font-weight:bold; color:red; pointer-events:none; display:none; text-align:center; z-index:10; text-shadow:2px 2px #fff; }
+#message { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:48px; font-weight:bold; color:red; pointer-events:none; display:none; text-align:center; z-index:999; text-shadow:2px 2px #fff; }
 @media (max-width:600px){ .btn{padding:8px 15px;font-size:14px;} #message{font-size:36px;} }
 </style>
 </head>
@@ -57,7 +57,7 @@ const sounds={
     2:new Audio('flip2.mp3'),
     3:new Audio('flip3.mp3'),
     4:new Audio('flip4.mp3'),
-    corner:new Audio('corner.m4a'),
+    corner:new Audio('corner.mp3'), // mp3に変更
     win:new Audio('win.mp3'),
     lose:new Audio('lose.mp3')
 };
@@ -176,10 +176,16 @@ function handleMove(x,y){
     flipPiece(x,y,myColor,true);
     switchTurn();
     renderBoard();
-    showMessage(currentPlayer===myColor?'あなたの番です':'あいての番です',1000);
 
     if(checkGameEnd()) return;
+
+    if(!hasValidMove(currentPlayer)){
+        showMessage('置ける場所が無いのでスキップします',1500);
+        switchTurn();
+    }
+
     if(aiEnabled && currentPlayer!=="black") setTimeout(aiMove,800);
+    else showMessage(currentPlayer===myColor?'あなたの番です':'あいての番です',1000);
 }
 
 // AI動作
@@ -190,7 +196,11 @@ function aiMove(){
             if(isValidMove(x,y,'white')) moves.push({x,y});
         }
     }
-    if(moves.length===0){ switchTurn(); showMessage('あなたの番です',1000); return; }
+    if(moves.length===0){
+        showMessage('置ける場所が無いのでスキップします',1500);
+        switchTurn();
+        return;
+    }
 
     let move;
     if(aiStrength==='weak') move=moves[Math.floor(Math.random()*moves.length)];
@@ -207,9 +217,13 @@ function aiMove(){
     flipPiece(move.x,move.y,'white',true);
     switchTurn();
     renderBoard();
-    showMessage('あなたの番です',1000);
+    if(!hasValidMove(currentPlayer)){
+        showMessage('置ける場所が無いのでスキップします',1500);
+        switchTurn();
+    }
 
     checkGameEnd();
+    showMessage(currentPlayer===myColor?'あなたの番です':'あいての番です',1000);
 }
 
 // ひっくり返る数
@@ -282,6 +296,10 @@ socket.on('move',data=>{
     flipPiece(data.x,data.y,data.color,true);
     switchTurn();
     renderBoard();
+    if(!hasValidMove(currentPlayer)){
+        showMessage('置ける場所が無いのでスキップします',1500);
+        switchTurn();
+    }
     showMessage(currentPlayer===myColor?'あなたの番です':'あいての番です',1000);
 });
 
