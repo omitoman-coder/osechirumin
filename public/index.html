@@ -22,7 +22,7 @@ h1 { color:#ff69b4; margin-top:20px; text-shadow:1px 1px 2px #fff; }
 </style>
 </head>
 <body>
-<h1>オセちるみん 伝説の始まり</h1>
+<h1>オセちるみん Ver5</h1>
 <div id="controls">
     <button class="btn" onclick="chooseColor()">先攻？後攻？</button>
     <button class="btn" onclick="startAIGame('weak')">ちる弱</button>
@@ -100,11 +100,11 @@ function renderBoard(){
     }
 }
 
-// 駒描画（角音確実再生修正版）
+// 駒描画（角音確実再生版）
 function flipPiece(x,y,color,animate=true){
     const cell=cells[y][x];
     
-    // 角音再生（駒生成前にチェック）
+    // 角音再生
     if((x===0||x===7)&&(y===0||y===7) && !cornersTaken[`${x},${y}`]){
         sounds.corner.play();
         cornersTaken[`${x},${y}`]=true;
@@ -122,20 +122,200 @@ function flipPiece(x,y,color,animate=true){
     }
 }
 
-// 以下は以前のコードをそのまま踏襲
-function isValidMove(x,y,color){ /* 略、元の関数と同じ */ return true; }
-function placeDisk(x,y,color){ /* 略 */ }
+// --- 以下は元の正常動作コードをそのまま維持 ---
+function isValidMove(x,y,color){
+    if(boardState[y][x]) return false;
+    const opponent=(color==='black')?'white':'black';
+    const dirs=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+    for(const [dx,dy] of dirs){
+        let nx=x+dx, ny=y+dy, found=false;
+        while(nx>=0&&nx<8&&ny>=0&&ny<8&&boardState[ny][nx]===opponent){
+            nx+=dx; ny+=dy; found=true;
+        }
+        if(found && nx>=0&&nx<8&&ny>=0&&ny<8 && boardState[ny][nx]===color) return true;
+    }
+    return false;
+}
+
+function placeDisk(x,y,color){
+    boardState[y][x]=color;
+    const opponent=(color==='black')?'white':'black';
+    const dirs=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+    let flipped=0;
+    for(const [dx,dy] of dirs){
+        let nx=x+dx, ny=y+dy, line=[];
+        while(nx>=0&&nx<8&&ny>=0&&ny<8&&boardState[ny][nx]===opponent){
+            line.push([nx,ny]);
+            nx+=dx; ny+=dy;
+        }
+        if(line.length && nx>=0&&nx<8 && ny>=0&&ny<8 && boardState[ny][nx]===color){
+            flipped+=line.length;
+            for(const [fx,fy] of line) boardState[fy][fx]=color;
+        }
+    }
+    if(flipped>=4) sounds[4].play();
+    else if(flipped===3) sounds[3].play();
+    else if(flipped===2) sounds[2].play();
+    else if(flipped===1) sounds[1].play();
+}
+
 function switchTurn(){ currentPlayer=currentPlayer==='black'?'white':'black'; }
-function hasValidMove(color){ /* 略 */ return true; }
-function countDisks(){ /* 略 */ return {black:0,white:0}; }
-function checkGameOver(){ /* 略 */ return false; }
-function checkSkip(isAI=false,isOnline=false){ /* 略 */ return true; }
-function handleMove(x,y){ /* 略 */ }
-function aiMove(){ /* 略 */ }
-function countFlips(x,y,color){ /* 略 */ return 0; }
-function startAIGame(level){ /* 略 */ }
-function startOnline(){ /* 略 */ }
-function chooseColor(){ /* 略 */ }
+
+function hasValidMove(color){
+    for(let y=0;y<8;y++){
+        for(let x=0;x<8;x++){
+            if(isValidMove(x,y,color)) return true;
+        }
+    }
+    return false;
+}
+
+function countDisks(){
+    let black=0, white=0;
+    for(let y=0;y<8;y++){
+        for(let x=0;x<8;x++){
+            if(boardState[y][x]==='black') black++;
+            else if(boardState[y][x]==='white') white++;
+        }
+    }
+    return {black,white};
+}
+
+function checkGameOver(){
+    const blackMoves = hasValidMove('black');
+    const whiteMoves = hasValidMove('white');
+
+    if(!blackMoves && !whiteMoves){
+        const counts = countDisks();
+        if(counts.black > counts.white){ showMessage('黒の勝ち！',3000); sounds.win.play(); }
+        else if(counts.white > counts.black){ showMessage('白の勝ち！',3000); sounds.lose.play(); }
+        else showMessage('引き分け！',3000);
+        gameStarted=false;
+        return true;
+    }
+    return false;
+}
+
+function checkSkip(isAI=false,isOnline=false){
+    while(gameStarted && !hasValidMove(currentPlayer)){
+        if(isAI) {
+            showMessage('AIがスキップします');
+            cells.flat().forEach(cell=>{
+                if(cell.firstChild) {
+                    cell.firstChild.classList.add('ai-skip-flip');
+                    setTimeout(()=>{cell.firstChild.classList.remove('ai-skip-flip');},800);
+                }
+            });
+        } else if(isOnline) showMessage('相手がスキップします');
+        else showMessage('スキップします');
+
+        switchTurn();
+        if(checkGameOver()) return false;
+    }
+    return true;
+}
+
+function handleMove(x,y){
+    if(!gameStarted || !myColor || currentPlayer!==myColor) return;
+    if(!isValidMove(x,y,myColor)) return;
+
+    placeDisk(x,y,myColor);
+    flipPiece(x,y,myColor,true);
+    switchTurn();
+    renderBoard();
+
+    if(!checkSkip()) return;
+    showMessage(currentPlayer===myColor?'あなたの番です':'あいての番です');
+
+    if(aiEnabled && currentPlayer!==myColor) setTimeout(aiMove,800);
+}
+
+function aiMove(){
+    if(!gameStarted) return;
+
+    if(!hasValidMove('white')){
+        showMessage('AIがスキップします');
+        switchTurn();
+        if(!checkGameOver() && currentPlayer!==myColor) setTimeout(aiMove,800);
+        return;
+    }
+
+    let moves=[];
+    for(let y=0;y<8;y++){
+        for(let x=0;x<8;x++){
+            if(isValidMove(x,y,'white')) moves.push({x,y});
+        }
+    }
+    if(moves.length===0) return;
+
+    let move;
+    if(aiStrength==='weak') move=moves[Math.floor(Math.random()*moves.length)];
+    else if(aiStrength==='normal'){
+        let max=-1;
+        for(const m of moves){ let c=countFlips(m.x,m.y,'white'); if(c>max){max=c; move=m;} }
+    } else {
+        move=moves.find(m=>(m.x===0||m.x===7)&&(m.y===0||m.y===7)) || moves[0];
+        let max=-1;
+        for(const m of moves){ let c=countFlips(m.x,m.y,'white'); if(c>max){max=c; move=m;} }
+    }
+
+    placeDisk(move.x,move.y,'white');
+    flipPiece(move.x,move.y,'white',true);
+    switchTurn();
+    renderBoard();
+
+    if(!checkSkip()) return;
+    showMessage('あなたの番です');
+
+    if(currentPlayer!==myColor) setTimeout(aiMove,800);
+}
+
+function countFlips(x,y,color){
+    let total=0;
+    const opponent=(color==='black')?'white':'black';
+    const dirs=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
+    for(const [dx,dy] of dirs){
+        let nx=x+dx, ny=y+dy, line=0;
+        while(nx>=0&&nx<8&&ny>=0&&ny<8 && boardState[ny][nx]===opponent){
+            line++; nx+=dx; ny+=dy;
+        }
+        if(line && nx>=0&&nx<8 && ny>=0&&ny<8 && boardState[ny][nx]===color) total+=line;
+    }
+    return total;
+}
+
+function startAIGame(level){
+    if(!myColor){ alert('まず先攻？後攻？ボタンを押してください'); return; }
+
+    aiEnabled=true;
+    aiStrength=level;
+    initBoard();
+
+    if(level==='weak') sounds.start_weak.play();
+    else if(level==='normal') sounds.start_normal.play();
+    else if(level==='strong') sounds.start_strong.play();
+
+    showMessage('ゲーム開始！',2000);
+
+    if(currentPlayer!==myColor) setTimeout(aiMove,800);
+}
+
+function startOnline(){
+    if(!myColor){ alert('まず先攻？後攻？ボタンを押してください'); return; }
+
+    aiEnabled=false;
+    initBoard();
+
+    sounds.start_online.play();
+    showMessage('ゲーム開始！',2000);
+}
+
+function chooseColor(){
+    const colors=['white','black'];
+    myColor=colors[Math.floor(Math.random()*2)];
+    currentPlayer='black';
+    showMessage(`あなたは${myColor==='white'?'白です':'黒です'}`,1000);
+}
 
 // オンライン受信
 socket.on('move',data=>{
