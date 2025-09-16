@@ -299,7 +299,10 @@ function startAIGame(level){
 
     showMessage('ゲーム開始！',2000);
 
-    if(currentPlayer!==myColor) setTimeout(aiMove,800);
+    // --- 修正：自分が黒のときのみAIが先手を打つ ---
+    if(myColor==='black' && currentPlayer==='white') {
+        setTimeout(aiMove,800);
+    }
 }
 
 function startOnline(){
@@ -315,13 +318,14 @@ function startOnline(){
 function chooseColor(){
     const colors=['white','black'];
     myColor=colors[Math.floor(Math.random()*2)];
-    currentPlayer='black'; // デフォルト黒先攻
+
+    // 白は先攻、黒は後攻に固定
     if(myColor==='white'){
-        currentPlayer='black'; // 黒から開始
-        showMessage('あなたは白です（後攻）',1000);
+        currentPlayer='white';
+        showMessage('あなたは白です（先攻）',1500);
     } else {
-        currentPlayer='black';
-        showMessage('あなたは黒です（先攻）',1000);
+        currentPlayer='white'; // 白から開始
+        showMessage('あなたは黒です（後攻）',1500);
     }
 }
 
