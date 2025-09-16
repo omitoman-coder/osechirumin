@@ -104,7 +104,7 @@ function renderBoard(){
 function flipPiece(x,y,color,animate=true){
     const cell=cells[y][x];
 
-    // 角音再生
+    // 角音は一度だけ鳴らす
     if((x===0||x===7)&&(y===0||y===7) && !cornersTaken[`${x},${y}`]){
         sounds.corner.play();
         cornersTaken[`${x},${y}`]=true;
@@ -112,8 +112,10 @@ function flipPiece(x,y,color,animate=true){
 
     cell.innerHTML='';
     const piece=document.createElement('div'); piece.classList.add('piece');
-    const img=document.createElement('img'); img.src=color==='black'?'black.png':'white.png';
-    piece.appendChild(img); cell.appendChild(piece);
+    const img=document.createElement('img'); 
+    img.src=color==='black'?'black.png':'white.png';
+    piece.appendChild(img); 
+    cell.appendChild(piece);
 
     if(animate){
         piece.style.transform='rotateY(180deg)';
@@ -121,7 +123,7 @@ function flipPiece(x,y,color,animate=true){
     }
 }
 
-// --- 以下は元の正常動作コードを維持 ---
+// --- 以下は元の正常動作コード維持 ---
 function isValidMove(x,y,color){
     if(boardState[y][x]) return false;
     const opponent=(color==='black')?'white':'black';
@@ -159,31 +161,12 @@ function placeDisk(x,y,color){
 }
 
 function switchTurn(){ currentPlayer=currentPlayer==='black'?'white':'black'; }
-
-function hasValidMove(color){
-    for(let y=0;y<8;y++){
-        for(let x=0;x<8;x++){
-            if(isValidMove(x,y,color)) return true;
-        }
-    }
-    return false;
-}
-
-function countDisks(){
-    let black=0, white=0;
-    for(let y=0;y<8;y++){
-        for(let x=0;x<8;x++){
-            if(boardState[y][x]==='black') black++;
-            else if(boardState[y][x]==='white') white++;
-        }
-    }
-    return {black,white};
-}
+function hasValidMove(color){ for(let y=0;y<8;y++){ for(let x=0;x<8;x++){ if(isValidMove(x,y,color)) return true; } } return false; }
+function countDisks(){ let black=0, white=0; for(let y=0;y<8;y++){ for(let x=0;x<8;x++){ if(boardState[y][x]==='black') black++; else if(boardState[y][x]==='white') white++; } } return {black,white}; }
 
 function checkGameOver(){
     const blackMoves = hasValidMove('black');
     const whiteMoves = hasValidMove('white');
-
     if(!blackMoves && !whiteMoves){
         const counts = countDisks();
         let result="";
@@ -209,7 +192,6 @@ function checkSkip(isAI=false,isOnline=false){
             });
         } else if(isOnline) showMessage('相手がスキップします');
         else showMessage('スキップします');
-
         switchTurn();
         if(checkGameOver()) return false;
     }
@@ -235,7 +217,6 @@ function aiMove(){
     if(!gameStarted) return;
 
     const aiColor = (myColor==='black')?'white':'black';
-
     if(!hasValidMove(aiColor)){
         showMessage('AIがスキップします');
         switchTurn();
@@ -244,11 +225,7 @@ function aiMove(){
     }
 
     let moves=[];
-    for(let y=0;y<8;y++){
-        for(let x=0;x<8;x++){
-            if(isValidMove(x,y,aiColor)) moves.push({x,y});
-        }
-    }
+    for(let y=0;y<8;y++){ for(let x=0;x<8;x++){ if(isValidMove(x,y,aiColor)) moves.push({x,y}); } }
     if(moves.length===0) return;
 
     let move;
@@ -289,9 +266,7 @@ function countFlips(x,y,color){
 
 function startAIGame(level){
     if(!myColor){ alert('まず先攻？後攻？ボタンを押してください'); return; }
-
-    aiEnabled=true;
-    aiStrength=level;
+    aiEnabled=true; aiStrength=level;
     initBoard();
 
     if(level==='weak') sounds.start_weak.play();
@@ -301,17 +276,13 @@ function startAIGame(level){
     showMessage('ゲーム開始！',2000);
 
     const aiColor = (myColor==='black') ? 'white' : 'black';
-    if(currentPlayer===aiColor){
-        setTimeout(aiMove,800);
-    }
+    if(currentPlayer===aiColor){ setTimeout(aiMove,800); }
 }
 
 function startOnline(){
     if(!myColor){ alert('まず先攻？後攻？ボタンを押してください'); return; }
-
     aiEnabled=false;
     initBoard();
-
     sounds.start_online.play();
     showMessage('ゲーム開始！',2000);
 }
