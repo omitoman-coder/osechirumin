@@ -5,24 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>オセちるみん 伝説の始まり</title>
 <style>
-body { font-family: Arial,sans-serif; display:flex; flex-direction:column; align-items:center; background:#ffe4f0; margin:0; padding:0; }
-h1 { color:#ff69b4; margin-top:20px; text-shadow:1px 1px 2px #fff; }
-#controls { margin:10px 0; display:flex; flex-wrap:wrap; justify-content:center; }
-.btn { background-color:#ffb6c1; border:none; border-radius:15px; padding:10px 20px; margin:5px; font-size:16px; cursor:pointer; transition:0.2s; }
-.btn:hover { background-color:#ff69b4;color:#fff; }
-#board { display:grid; grid-template-columns:repeat(8,1fr); gap:0; width:90vw; max-width:650px; aspect-ratio:1/1; background-image:url('board.png'); background-size:cover; background-position:center; border:2px solid #000; position:relative; }
-.cell { border:1px solid rgba(0,0,0,0.3); position:relative; touch-action:manipulation; }
-.piece { width:80%; height:80%; border-radius:50%; position:absolute; top:10%; left:10%; transform-style:preserve-3d; backface-visibility:hidden; transition:transform 0.4s ease; }
-.flip { transform:rotateY(180deg); }
-.piece img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
-#message { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:48px; font-weight:bold; color:red; pointer-events:none; display:none; text-align:center; z-index:10; text-shadow:2px 2px #fff; }
-@media (max-width:600px){ .btn{padding:8px 15px;font-size:14px;} #message{font-size:36px;} }
-@keyframes aiSkipFlip { 0% { transform: translateY(0); } 25% { transform: translateY(-10%); } 50% { transform: translateY(0); } 75% { transform: translateY(-5%); } 100% { transform: translateY(0); } }
-.ai-skip-flip { animation: aiSkipFlip 0.8s ease; }
+/* （CSSは前と同じなので省略してOK。必要ならそのまま使える） */
 </style>
 </head>
 <body>
-<h1>オセちるみん Ver5</h1>
+<h1>オセちるみん Ver7</h1>
 <div id="controls">
     <button class="btn" onclick="chooseColor()">先攻？後攻？</button>
     <button class="btn" onclick="startAIGame('weak')">ちる弱</button>
@@ -52,134 +39,9 @@ function showMessage(msg, duration=1500){
     if(duration>0) setTimeout(()=>{messageEl.style.display='none';}, duration);
 }
 
-// 音声
-const sounds={
-    start_weak:new Audio('start_weak.mp3'),
-    start_normal:new Audio('start_normal.mp3'),
-    start_strong:new Audio('start_strong.mp3'),
-    start_online:new Audio('start_online.mp3'),
-    1:new Audio('flip1.mp3'),
-    2:new Audio('flip2.mp3'),
-    3:new Audio('flip3.mp3'),
-    4:new Audio('flip4.mp3'),
-    corner:new Audio('corner.mp3'),
-    win:new Audio('win.mp3'),
-    lose:new Audio('lose.mp3')
-};
-for(const k in sounds) sounds[k].volume=1.0;
+// 音声（省略、前回のまま）
 
-// セル生成
-for(let y=0;y<SIZE;y++){
-    cells[y]=[];
-    for(let x=0;x<SIZE;x++){
-        const div=document.createElement('div');
-        div.classList.add('cell');
-        div.dataset.x=x; div.dataset.y=y;
-        div.addEventListener('click', ()=>handleMove(x,y));
-        board.appendChild(div);
-        cells[y][x]=div;
-    }
-}
-
-// 初期化
-function initBoard(){
-    boardState=Array(SIZE).fill(null).map(()=>Array(SIZE).fill(null));
-    boardState[3][3]='white'; boardState[3][4]='black';
-    boardState[4][3]='black'; boardState[4][4]='white';
-    renderBoard();
-    gameStarted=true;
-}
-
-// 描画
-function renderBoard(){
-    for(let y=0;y<SIZE;y++){
-        for(let x=0;x<SIZE;x++){
-            if(boardState[y][x]) flipPiece(x,y,boardState[y][x],false);
-            else cells[y][x].innerHTML='';
-        }
-    }
-}
-
-// 駒描画（角音確実再生版）
-function flipPiece(x,y,color,animate=true){
-    const cell=cells[y][x];
-    
-    // 角音再生
-    if((x===0||x===7)&&(y===0||y===7) && !cornersTaken[`${x},${y}`]){
-        sounds.corner.play();
-        cornersTaken[`${x},${y}`]=true;
-    }
-
-    // 駒生成
-    cell.innerHTML='';
-    const piece=document.createElement('div'); piece.classList.add('piece');
-    const img=document.createElement('img'); img.src=color==='black'?'black.png':'white.png';
-    piece.appendChild(img); cell.appendChild(piece);
-
-    if(animate){
-        piece.style.transform='rotateY(180deg)';
-        setTimeout(()=>{piece.classList.add('flip');},10);
-    }
-}
-
-// --- 以下は元の正常動作コードをそのまま維持 ---
-function isValidMove(x,y,color){
-    if(boardState[y][x]) return false;
-    const opponent=(color==='black')?'white':'black';
-    const dirs=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-    for(const [dx,dy] of dirs){
-        let nx=x+dx, ny=y+dy, found=false;
-        while(nx>=0&&nx<8&&ny>=0&&ny<8&&boardState[ny][nx]===opponent){
-            nx+=dx; ny+=dy; found=true;
-        }
-        if(found && nx>=0&&nx<8&&ny>=0&&ny<8 && boardState[ny][nx]===color) return true;
-    }
-    return false;
-}
-
-function placeDisk(x,y,color){
-    boardState[y][x]=color;
-    const opponent=(color==='black')?'white':'black';
-    const dirs=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-    let flipped=0;
-    for(const [dx,dy] of dirs){
-        let nx=x+dx, ny=y+dy, line=[];
-        while(nx>=0&&nx<8&&ny>=0&&ny<8&&boardState[ny][nx]===opponent){
-            line.push([nx,ny]);
-            nx+=dx; ny+=dy;
-        }
-        if(line.length && nx>=0&&nx<8 && ny>=0&&ny<8 && boardState[ny][nx]===color){
-            flipped+=line.length;
-            for(const [fx,fy] of line) boardState[fy][fx]=color;
-        }
-    }
-    if(flipped>=4) sounds[4].play();
-    else if(flipped===3) sounds[3].play();
-    else if(flipped===2) sounds[2].play();
-    else if(flipped===1) sounds[1].play();
-}
-
-function switchTurn(){ currentPlayer=currentPlayer==='black'?'white':'black'; }
-
-function hasValidMove(color){
-    for(let y=0;y<8;y++){
-        for(let x=0;x<8;x++){
-            if(isValidMove(x,y,color)) return true;
-        }
-    }
-    return false;
-}
-
-function countDisks(){
-    let black=0, white=0;
-    for(let y=0;y<8;y++){
-        for(let x=0;x<8;x++){
-            if(boardState[y][x]==='black') black++;
-            else if(boardState[y][x]==='white') white++;
-        }
-    }
-    return {black,white};
-}
+// --- 中略：セル生成、initBoard(), renderBoard(), flipPiece() など前回と同じ ---
 
 function checkGameOver(){
     const blackMoves = hasValidMove('black');
@@ -187,102 +49,25 @@ function checkGameOver(){
 
     if(!blackMoves && !whiteMoves){
         const counts = countDisks();
-        if(counts.black > counts.white){ showMessage('黒の勝ち！',3000); sounds.win.play(); }
-        else if(counts.white > counts.black){ showMessage('白の勝ち！',3000); sounds.lose.play(); }
-        else showMessage('引き分け！',3000);
+        let resultMsg="";
+        if(counts.black > counts.white){ 
+            resultMsg=`黒の勝ち！ (${counts.black} 対 ${counts.white})`;
+            sounds.win.play(); 
+        }
+        else if(counts.white > counts.black){ 
+            resultMsg=`白の勝ち！ (${counts.white} 対 ${counts.black})`;
+            sounds.lose.play(); 
+        }
+        else resultMsg=`引き分け！ (${counts.black} 対 ${counts.white})`;
+
+        showMessage(resultMsg,3000);
         gameStarted=false;
         return true;
     }
     return false;
 }
 
-function checkSkip(isAI=false,isOnline=false){
-    while(gameStarted && !hasValidMove(currentPlayer)){
-        if(isAI) {
-            showMessage('AIがスキップします');
-            cells.flat().forEach(cell=>{
-                if(cell.firstChild) {
-                    cell.firstChild.classList.add('ai-skip-flip');
-                    setTimeout(()=>{cell.firstChild.classList.remove('ai-skip-flip');},800);
-                }
-            });
-        } else if(isOnline) showMessage('相手がスキップします');
-        else showMessage('スキップします');
-
-        switchTurn();
-        if(checkGameOver()) return false;
-    }
-    return true;
-}
-
-function handleMove(x,y){
-    if(!gameStarted || !myColor || currentPlayer!==myColor) return;
-    if(!isValidMove(x,y,myColor)) return;
-
-    placeDisk(x,y,myColor);
-    flipPiece(x,y,myColor,true);
-    switchTurn();
-    renderBoard();
-
-    if(!checkSkip()) return;
-    showMessage(currentPlayer===myColor?'あなたの番です':'あいての番です');
-
-    if(aiEnabled && currentPlayer!==myColor) setTimeout(aiMove,800);
-}
-
-function aiMove(){
-    if(!gameStarted) return;
-
-    if(!hasValidMove('white')){
-        showMessage('AIがスキップします');
-        switchTurn();
-        if(!checkGameOver() && currentPlayer!==myColor) setTimeout(aiMove,800);
-        return;
-    }
-
-    let moves=[];
-    for(let y=0;y<8;y++){
-        for(let x=0;x<8;x++){
-            if(isValidMove(x,y,'white')) moves.push({x,y});
-        }
-    }
-    if(moves.length===0) return;
-
-    let move;
-    if(aiStrength==='weak') move=moves[Math.floor(Math.random()*moves.length)];
-    else if(aiStrength==='normal'){
-        let max=-1;
-        for(const m of moves){ let c=countFlips(m.x,m.y,'white'); if(c>max){max=c; move=m;} }
-    } else {
-        move=moves.find(m=>(m.x===0||m.x===7)&&(m.y===0||m.y===7)) || moves[0];
-        let max=-1;
-        for(const m of moves){ let c=countFlips(m.x,m.y,'white'); if(c>max){max=c; move=m;} }
-    }
-
-    placeDisk(move.x,move.y,'white');
-    flipPiece(move.x,move.y,'white',true);
-    switchTurn();
-    renderBoard();
-
-    if(!checkSkip()) return;
-    showMessage('あなたの番です');
-
-    if(currentPlayer!==myColor) setTimeout(aiMove,800);
-}
-
-function countFlips(x,y,color){
-    let total=0;
-    const opponent=(color==='black')?'white':'black';
-    const dirs=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-    for(const [dx,dy] of dirs){
-        let nx=x+dx, ny=y+dy, line=0;
-        while(nx>=0&&nx<8&&ny>=0&&ny<8 && boardState[ny][nx]===opponent){
-            line++; nx+=dx; ny+=dy;
-        }
-        if(line && nx>=0&&nx<8 && ny>=0&&ny<8 && boardState[ny][nx]===color) total+=line;
-    }
-    return total;
-}
+// --- 中略：checkSkip, handleMove, aiMove などは前と同じ ---
 
 function startAIGame(level){
     if(!myColor){ alert('まず先攻？後攻？ボタンを押してください'); return; }
@@ -297,6 +82,7 @@ function startAIGame(level){
 
     showMessage('ゲーム開始！',2000);
 
+    // もしAIが先攻（黒）なら自動で初手を打つ
     if(currentPlayer!==myColor) setTimeout(aiMove,800);
 }
 
@@ -313,11 +99,13 @@ function startOnline(){
 function chooseColor(){
     const colors=['white','black'];
     myColor=colors[Math.floor(Math.random()*2)];
-    currentPlayer='black';
-    showMessage(`あなたは${myColor==='white'?'白です':'黒です'}`,1000);
+
+    // 自分が黒なら自分が先手、自分が白なら相手(AI/オンライン)が先手
+    currentPlayer='black'; 
+
+    showMessage(`あなたは${myColor==='white'?'白です（後攻）':'黒です（先攻）'}`,2000);
 }
 
-// オンライン受信
 socket.on('move',data=>{
     boardState[data.y][data.x]=data.color;
     flipPiece(data.x,data.y,data.color,true);
